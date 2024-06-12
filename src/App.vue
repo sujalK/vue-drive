@@ -1,16 +1,22 @@
 <template>
   <Navbar />
-  <MyFiles />
+<!--  <MyFiles />-->
+
+  <!--
+    renders the component (here, in place) that corresponds to the
+    url (defined in routes)
+  -->
+  <router-view />
 </template>
 
 <script>
-import MyFiles from "./pages/MyFiles.vue";
+// import MyFiles from "./pages/MyFiles.vue";
 import Navbar from "./components/Navbar.vue";
 
 export default {
   components: {
     Navbar,
-    MyFiles,
+    // MyFiles,
   },
 };
 </script>
