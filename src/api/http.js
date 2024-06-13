@@ -12,7 +12,6 @@ const http = axios.create({
 /**
  * Note: to get each user-specific data  i.e. files and folders, we need to send user id on each request.
  */
-
 http.interceptors.request.use((config) => {
   // set authorization header
   config.headers.Authorization = `Bearer: ${accessToken()}`;
@@ -31,7 +30,7 @@ http.interceptors.response.use((response) => {
     setUser(null);
     setToken(null);
 
-    window.location.reload()
+    window.location.reload();
   } else {
     return Promise.reject(error);
   }
