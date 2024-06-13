@@ -20,8 +20,11 @@ if (!fs.existsSync(path.join(__dirname, 'uploads'))) {
   fs.mkdirSync(path.join(__dirname, 'uploads'));
 }
 
-// Read db.json file
+// Read db.json file initially
 let db = JSON.parse(fs.readFileSync(path.join(__dirname, 'db.json'), 'utf8'));
+
+// Initialize users from db.json or an empty object
+let users = db.users || {};
 
 // Multer setup for file uploads
 const storage = multer.diskStorage({
@@ -58,18 +61,54 @@ function authenticateToken(req, res, next) {
   });
 }
 
-// Utility function to read users from db.json
-function getUsers() {
-  const db = JSON.parse(fs.readFileSync(path.join(__dirname, 'db.json'), 'utf8'));
-  return db.users || [];
-}
-
-// Utility function to save users to db.json
-function saveUsers(users) {
-  const db = JSON.parse(fs.readFileSync(path.join(__dirname, 'db.json'), 'utf8'));
-  db.users = users;
-  fs.writeFileSync(path.join(__dirname, 'db.json'), JSON.stringify(db, null, 2));
-}
+// Register endpoint
+// app.post('/register', async (req, res) => {
+//   const { email, password } = req.body;
+//
+//   // Basic validation
+//   if (!email || !password) {
+//     return res.status(400).send({ message: 'Email and password are required' });
+//   }
+//
+//   // Validate email format (basic example)
+//   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+//   if (!emailRegex.test(email)) {
+//     return res.status(400).send({ message: 'Invalid email format' });
+//   }
+//
+//   // Check if email already exists
+//   if (users.some(user => user.email === email)) {
+//     return res.status(400).send({ message: 'Email already registered' });
+//   }
+//
+//   // Hash password
+//   const hashedPassword = await bcrypt.hash(password, 10);
+//
+//   // Generate a unique id for the new user
+//   const id = users.length > 0 ? Math.max(...users.map(user => user.id)) + 1 : 1;
+//
+//   // Create new user object
+//   const newUser = { id, email, password: hashedPassword };
+//
+//   // Push the new user to the array
+//   users.push(newUser);
+//
+//   // Update db.json with the updated users array
+//   db.users = users;
+//   fs.writeFileSync(path.join(__dirname, 'db.json'), JSON.stringify(db, null, 2));
+//
+//   // Generate JWT access token
+//   const token = jwt.sign({ id, email }, JWT_SECRET, { expiresIn: '1h' });
+//
+//   // Respond with access token and user information
+//   res.status(201).send({
+//     accessToken: token,
+//     user: {
+//       email,
+//       id
+//     }
+//   });
+// });
 
 // Register endpoint
 app.post('/register', async (req, res) => {
@@ -85,9 +124,6 @@ app.post('/register', async (req, res) => {
   if (!emailRegex.test(email)) {
     return res.status(400).send({ message: 'Invalid email format' });
   }
-
-  // Get the latest users array
-  const users = getUsers();
 
   // Check if email already exists
   if (users.some(user => user.email === email)) {
@@ -106,8 +142,9 @@ app.post('/register', async (req, res) => {
   // Push the new user to the array
   users.push(newUser);
 
-  // Save the updated users array
-  saveUsers(users);
+  // Update db.json with the updated users array
+  db.users = users;
+  fs.writeFileSync(path.join(__dirname, 'db.json'), JSON.stringify(db, null, 2));
 
   // Generate JWT access token
   const token = jwt.sign({ id, email }, JWT_SECRET, { expiresIn: '1h' });
@@ -122,12 +159,10 @@ app.post('/register', async (req, res) => {
   });
 });
 
+
 // Login endpoint
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
-
-  // Get the latest users array
-  const users = getUsers();
 
   // Check if email exists in users array
   const user = users.find(user => user.email === email);
@@ -149,6 +184,8 @@ app.post('/login', async (req, res) => {
     }
   });
 });
+
+
 
 // Protected endpoints
 app.get('/files', authenticateToken, (req, res) => {
@@ -245,81 +282,64 @@ app.get('/folders/:id/folders', authenticateToken, (req, res) => {
   res.status(200).send(foldersWithinParent);
 });
 
-// PUT endpoint to star/unstar a file
-app.put('/files/:id/star', authenticateToken, (req, res) => {
-  const fileId = parseInt(req.params.id);
-  const { starred } = req.body;
-
-  const file = db.files.find(file => file.id === fileId);
-  if (file) {
-    file.starred = starred;
-
-    fs.writeFileSync(path.join(__dirname, 'db.json'), JSON.stringify(db, null, 2));
-    res.status(200).send(file);
-  } else {
-    res.status(404).send({ message: 'File not found' });
-  }
-});
-
-// PUT endpoint to star/unstar a folder
-app.put('/folders/:id/star', authenticateToken, (req, res) => {
-  const folderId = parseInt(req.params.id);
-  const { starred } = req.body;
-
-  const folder = db.folders.find(folder => folder.id === folderId);
-  if (folder) {
-    folder.starred = starred;
-
-    fs.writeFileSync(path.join(__dirname, 'db.json'), JSON.stringify(db, null, 2));
-    res.status(200).send(folder);
-  } else {
-    res.status(404).send({ message: 'Folder not found' });
-  }
-});
-
-
-
 app.post('/folders', authenticateToken, (req, res) => {
   const { name, folderId } = req.body;
 
   if (!name) {
-    return res.status(400).send({ message: 'Folder name is required' });
+    return res.status(400).send({ message: 'Name is required' });
   }
 
-  const newFolder = {
+  const folderData = {
     id: db.folders.length ? db.folders[db.folders.length - 1].id + 1 : 1,
-    name,
+    name: name,
     folderId: folderId || 0 // Default to root folder if not specified
   };
 
-  db.folders.push(newFolder);
+  db.folders.push(folderData);
   fs.writeFileSync(path.join(__dirname, 'db.json'), JSON.stringify(db, null, 2));
-
-  res.status(201).send(newFolder);
+  res.status(201).send(folderData);
 });
 
 app.get('/folders/:id/files', authenticateToken, (req, res) => {
   const folderId = parseInt(req.params.id);
-  const filesWithinFolder = db.files.filter(file => file.folderId === folderId);
-  res.status(200).send(filesWithinFolder);
+
+  const folder = db.folders.find(f => f.id === folderId);
+
+  if (!folder) {
+    return res.status(404).send({ message: 'Folder not found' });
+  }
+
+  let filesInFolder = db.files.filter(file => file.folderId === folderId);
+
+  const { _sort, _order } = req.query;
+  if (_sort) {
+    filesInFolder.sort((a, b) => {
+      const sortOrder = _order === 'desc' ? -1 : 1;
+      return sortOrder * (a[_sort] > b[_sort] ? 1 : -1);
+    });
+  }
+
+  res.status(200).send(filesInFolder);
 });
 
 app.post('/files', authenticateToken, (req, res) => {
-  upload(req, res, (err) => {
-    if (err) {
-      return res.status(500).send({ message: 'Error uploading file' });
+  upload(req, res, function (err) {
+    if (err instanceof multer.MulterError) {
+      return res.status(400).send({ message: err.message });
+    } else if (err) {
+      return res.status(400).send({ message: err.message });
     }
-
-    const { folderId } = req.body;
 
     const fileData = {
       id: db.files.length ? db.files[db.files.length - 1].id + 1 : 1,
-      name: req.file.filename,
-      fileUrl: req.file.path,
-      folderId: folderId || 0 // Default to root folder if not specified
+      name: req.file.originalname,
+      mimeType: req.file.mimetype,
+      url: `http://localhost:${port}/uploads/${req.file.filename}`,
+      path: req.file.path,
+      folderId: parseInt(req.body.folderId) || 0, // Default to root folder if not specified
+      createdAt: Date.now()
     };
 
-    db.files.push(fileData);
     fs.writeFileSync(path.join(__dirname, 'db.json'), JSON.stringify(db, null, 2));
     res.status(201).send(fileData);
   });
@@ -327,65 +347,121 @@ app.post('/files', authenticateToken, (req, res) => {
 
 app.put('/files/:id', authenticateToken, (req, res) => {
   const fileId = parseInt(req.params.id);
-  const { name, folderId } = req.body;
+  const file = db.files.find(f => f.id === fileId);
 
-  const file = db.files.find(file => file.id === fileId);
-  if (file) {
-    file.name = name || file.name;
-    file.folderId = folderId !== undefined ? folderId : file.folderId;
-
-    fs.writeFileSync(path.join(__dirname, 'db.json'), JSON.stringify(db, null, 2));
-    res.status(200).send(file);
-  } else {
-    res.status(404).send({ message: 'File not found' });
+  if (!file) {
+    return res.status(404).send({ message: 'File not found' });
   }
-});
 
-app.put('/folders/:id', authenticateToken, (req, res) => {
-  const folderId = parseInt(req.params.id);
-  const { name, folderId: newParentId } = req.body;
+  const { name, folderId, starred } = req.body;
 
-  const folder = db.folders.find(folder => folder.id === folderId);
-  if (folder) {
-    folder.name = name || folder.name;
-    folder.folderId = newParentId !== undefined ? newParentId : folder.folderId;
-
-    fs.writeFileSync(path.join(__dirname, 'db.json'), JSON.stringify(db, null, 2));
-    res.status(200).send(folder);
-  } else {
-    res.status(404).send({ message: 'Folder not found' });
+  if (name !== undefined) {
+    file.name = name;
   }
+
+  if (folderId !== undefined) {
+    file.folderId = parseInt(folderId);
+  }
+
+  if (starred !== undefined) {
+    file.starred = starred;
+  }
+
+  fs.writeFileSync(path.join(__dirname, 'db.json'), JSON.stringify(db, null, 2));
+  res.status(200).send(file);
 });
 
 app.delete('/files/:id', authenticateToken, (req, res) => {
   const fileId = parseInt(req.params.id);
+  const fileIndex = db.files.findIndex(f => f.id === fileId);
 
-  const fileIndex = db.files.findIndex(file => file.id === fileId);
-  if (fileIndex !== -1) {
-    const deletedFile = db.files.splice(fileIndex, 1)[0];
-    fs.unlinkSync(path.join(__dirname, deletedFile.fileUrl)); // Delete the file from the server
+  if (fileIndex === -1) {
+    return res.status(404).send({ message: 'File not found' });
+  }
+
+  const file = db.files[fileIndex];
+  db.files.splice(fileIndex, 1);
+
+  fs.unlink(file.path, (err) => {
+    if (err) {
+      return res.status(500).send({ message: 'Failed to delete file from disk' });
+    }
 
     fs.writeFileSync(path.join(__dirname, 'db.json'), JSON.stringify(db, null, 2));
     res.status(200).send({ message: 'File deleted successfully' });
-  } else {
-    res.status(404).send({ message: 'File not found' });
-  }
+  });
 });
 
 app.delete('/folders/:id', authenticateToken, (req, res) => {
   const folderId = parseInt(req.params.id);
+  const folderIndex = db.folders.findIndex(f => f.id === folderId);
 
-  const folderIndex = db.folders.findIndex(folder => folder.id === folderId);
-  if (folderIndex !== -1) {
-    db.folders.splice(folderIndex, 1);
-
-    fs.writeFileSync(path.join(__dirname, 'db.json'), JSON.stringify(db, null, 2));
-    res.status(200).send({ message: 'Folder deleted successfully' });
-  } else {
-    res.status(404).send({ message: 'Folder not found' });
+  if (folderIndex === -1) {
+    return res.status(404).send({ message: 'Folder not found' });
   }
+
+  const filesInFolder = db.files.filter(file => file.folderId === folderId);
+  if (filesInFolder.length > 0) {
+    return res.status(400).send({ message: 'Cannot delete folder with files inside' });
+  }
+
+  db.folders.splice(folderIndex, 1);
+  fs.writeFileSync(path.join(__dirname, 'db.json'), JSON.stringify(db, null, 2));
+  res.status(200).send({ message: 'Folder deleted successfully' });
+});
+
+app.post('/folders/:id/star', authenticateToken, (req, res) => {
+  const folderId = parseInt(req.params.id);
+  const folder = db.folders.find(f => f.id === folderId);
+
+  if (!folder) {
+    return res.status(404).send({ message: 'Folder not found' });
+  }
+
+  folder.starred = true;
+  fs.writeFileSync(path.join(__dirname, 'db.json'), JSON.stringify(db, null, 2));
+  res.status(200).send({ message: 'Folder starred successfully' });
+});
+
+app.delete('/folders/:id/star', authenticateToken, (req, res) => {
+  const folderId = parseInt(req.params.id);
+  const folder = db.folders.find(f => f.id === folderId);
+
+  if (!folder) {
+    return res.status(404).send({ message: 'Folder not found' });
+  }
+
+  folder.starred = false;
+  fs.writeFileSync(path.join(__dirname, 'db.json'), JSON.stringify(db, null, 2));
+  res.status(200).send({ message: 'Folder unstarred successfully' });
+});
+
+app.post('/files/:id/star', authenticateToken, (req, res) => {
+  const fileId = parseInt(req.params.id);
+  const file = db.files.find(f => f.id === fileId);
+
+  if (!file) {
+    return res.status(404).send({ message: 'File not found' });
+  }
+
+  file.starred = true;
+  fs.writeFileSync(path.join(__dirname, 'db.json'), JSON.stringify(db, null, 2));
+  res.status(200).send({ message: 'File starred successfully' });
+});
+
+app.delete('/files/:id/star', authenticateToken, (req, res) => {
+  const fileId = parseInt(req.params.id);
+  const file = db.files.find(f => f.id === fileId);
+
+  if (!file) {
+    return res.status(404).send({ message: 'File not found' });
+  }
+
+  file.starred = false;
+  fs.writeFileSync(path.join(__dirname, 'db.json'), JSON.stringify(db, null, 2));
+  res.status(200).send({ message: 'File unstarred successfully' });
 });
 
 app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+  console.log(`Server is running on http://localhost:${port}`);
 });

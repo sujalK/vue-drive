@@ -34,12 +34,23 @@
       >
         <icon-trash />
       </button>
+
+      <button
+        type="button"
+        class="rounded-button"
+        title="Add to starred"
+        @click="$emit('starred')"
+      >
+        <icon-star />
+      </button>
+
     </div>
   </div>
 </template>
 <script>
 import FileChooser from "./uploader/file-chooser/file-chooser.vue";
 import IconFolderPlus from "./icons/IconFolderPlus.vue";
+import IconStar from "./icons/IconStar.vue";
 
 export default {
   props: {
@@ -48,7 +59,7 @@ export default {
       default: 0
     }
   },
-  components: {IconFolderPlus, FileChooser },
-  emits: ['rename', 'remove', 'create-folder']
+  components: { IconFolderPlus, IconStar, FileChooser },
+  emits: ['rename', 'remove', 'create-folder', 'starred']
 }
 </script>

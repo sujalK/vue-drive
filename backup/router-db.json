@@ -10,7 +10,7 @@
       "id": 2,
       "name": "Docs",
       "folderId": 0,
-      "starred": false
+      "starred": true
     },
     {
       "id": 3,
@@ -27,21 +27,13 @@
   ],
   "files": [
     {
-      "id": 5,
-      "name": "File 5.xls",
-      "mimeType": "application/vnd.ms-excel",
-      "folderId": 2,
-      "createdAt": 1635746199284,
-      "starred": false
-    },
-    {
       "id": 1,
       "name": "File 1.jpg",
       "url": "https://picsum.photos/id/1015/350/200",
       "mimeType": "image/jpeg",
       "folderId": 0,
       "createdAt": 1635746178052,
-      "starred": false
+      "starred": true
     },
     {
       "id": 2,
@@ -50,7 +42,7 @@
       "mimeType": "image/png",
       "folderId": 3,
       "createdAt": 1635746159804,
-      "starred": false
+      "starred": true
     },
     {
       "id": 3,
@@ -67,14 +59,14 @@
       "folderId": 4,
       "createdAt": 1635746069282,
       "starred": false
-    }
-  ],
-  "users": [
+    },
     {
-      "id": 1,
-      "name": "test",
-      "email": "test@gmail.com",
-      "password": "$2b$10$.XOGpSDESAwRco0XeUMal.Le4p8F7j9T6swWGuU/iUffbjPkldHty"
+      "id": 5,
+      "name": "File 5.xls",
+      "mimeType": "application/vnd.ms-excel",
+      "folderId": 2,
+      "createdAt": 1635746199284,
+      "starred": false
     }
   ]
 }
